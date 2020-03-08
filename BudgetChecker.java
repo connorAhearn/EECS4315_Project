@@ -47,6 +47,9 @@ public class BudgetChecker extends ListenerAdapter {
 
   static final int CHECK_INTERVAL = 10000;
   static final int CHECK_INTERVAL1 = CHECK_INTERVAL-1;
+
+  // 1024 * 1024
+  static final int MEGABYTE = 1048576;
     
   long tStart;
   MemoryUsage muStart;
@@ -111,8 +114,8 @@ public class BudgetChecker extends ListenerAdapter {
       MemoryUsage mu = mxb.getHeapMemoryUsage();
       long used = mu.getUsed() - mStart;
       if (used > maxHeap) {
-        message = "max heap exceeded: " + (used / (1024*1024)) + "MB" 
-                      + " >= " + (maxHeap / (1024*1024)) + "MB" ;
+        message = "max heap exceeded: " + (used / MEGABYTE) + "MB" 
+                      + " >= " + (maxHeap / MEGABYTE) + "MB" ;
         return true;
       }
     }
