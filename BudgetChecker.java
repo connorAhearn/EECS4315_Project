@@ -98,9 +98,9 @@ public class BudgetChecker extends ListenerAdapter {
       
   public boolean timeExceeded() {
     if (maxTime > 0) {
-      long dur = System.currentTimeMillis() - tStart;
-      if (dur > maxTime) {
-        message = "max time exceeded: " + Publisher.formatHMS(dur)
+      long duration = System.currentTimeMillis() - tStart;
+      if (duration > maxTime) {
+        message = "max time exceeded: " + Publisher.formatHMS(duration)
                + " >= " + Publisher.formatHMS(maxTime);
         return true;
       }
@@ -111,8 +111,8 @@ public class BudgetChecker extends ListenerAdapter {
   
   public boolean heapExceeded() {
     if (maxHeap > 0) {
-      MemoryUsage mu = mxb.getHeapMemoryUsage();
-      long used = mu.getUsed() - mStart;
+      MemoryUsage memoryUsage = mxb.getHeapMemoryUsage();
+      long used = memoryUsage.getUsed() - mStart;
       if (used > maxHeap) {
         message = "max heap exceeded: " + (used / MEGABYTE) + "MB" 
                       + " >= " + (maxHeap / MEGABYTE) + "MB" ;
@@ -125,8 +125,8 @@ public class BudgetChecker extends ListenerAdapter {
   
   public boolean depthExceeded () {
     if (maxDepth > 0) {
-      int d = search.getDepth();
-      if (d > maxDepth) {
+      int depth = search.getDepth();
+      if (depth > maxDepth) {
         message = "max search depth exceeded: " + maxDepth;
         return true;
       }
