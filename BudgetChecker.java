@@ -41,8 +41,8 @@ import java.lang.management.MemoryUsage;
   @JPFOption(type = "Int", key = "budget.max_depth", defaultValue = "-1", comment = "stop search at specified search depth"),
   @JPFOption(type = "long", key = "budget.max_insn", defaultValue = "-1", comment = "stop search after specified number of intstructions"),
   @JPFOption(type = "Int", key = "budget.max_state", defaultValue = "-1", comment = "stop search when reaching specified number of new states"),
-  @JPFOption(type = "Int", key = "budget.max_new_states", defaultValue = "-1", comment= "stop search after specified number of non-replayed new states")
-  @JPFOption(type = "Int", key = "budget.check_interval", defaultValue = "-1", comment= "decides after how many instructions to checks in instructionExecuted")
+  @JPFOption(type = "Int", key = "budget.max_new_states", defaultValue = "-1", comment= "stop search after specified number of non-replayed new states"),
+  @JPFOption(type = "Int", key = "budget.check_interval", defaultValue = "-1", comment= "decides how often the checks within instructionExecuted happen")
 })
 
 /**
