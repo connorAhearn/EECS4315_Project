@@ -283,7 +283,6 @@ public class BudgetChecker extends ListenerAdapter {
     return false;
   }
   
-  @Override
   /** 
    * Anytime the state advances, this method checks if
    * the time, heap, state count, depth or new state count
@@ -291,8 +290,9 @@ public class BudgetChecker extends ListenerAdapter {
    * terminates and a message describing why is passed on
    * to the JPF report
    * 
-   * @param search 
+   * @param search Search object corresponding to the current search thats running
    */
+  @Override
   public void stateAdvanced (Search search) {    
     if (timeExceeded() || heapExceeded()) {
       search.notifySearchConstraintHit(message);
@@ -310,22 +310,25 @@ public class BudgetChecker extends ListenerAdapter {
     }
   }
       
-  @Override
   /**
    * Overridden method inherited from ListenerAdapter
    * 
-   * Anytime an instruction executes, this method checks if
+   * This method runs anytime an instruction executes. However
+   * it only checks instruction based budget checks on instruction counts
+   * that correspond to the budget.check_interval parameter in the
+   * jpf config file
+   * 
+   * This method checks if
    * the time, heap size or amount of instruction executed has
    * exceeded their limits. If they have, the search terminates
    * and a message why is passed on to the JPF report
-   *
-   * Only checks every 10000 instructions excecuted
    * 
-   * @param vm
-   * @param ti
-   * @param nextInsn
-   * @param executedInsn
+   * @param vm JPF VM related to the current model check
+   * @param ti Thread information provided by JPF required for providing instruction statistics & thresholds
+   * @param nextInsn Instruction that will run next
+   * @param executedInsn Instruction that has just run
    */
+  @Override
   public void instructionExecuted (VM vm, ThreadInfo ti, Instruction nextInsn, Instruction executedInsn) {
 
     // Checks every CHECK_INTERVAL instructions excecuted
