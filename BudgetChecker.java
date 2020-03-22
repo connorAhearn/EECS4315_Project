@@ -41,7 +41,8 @@ import java.lang.management.MemoryUsage;
   @JPFOption(type = "Int", key = "budget.max_depth", defaultValue = "-1", comment = "stop search at specified search depth"),
   @JPFOption(type = "long", key = "budget.max_insn", defaultValue = "-1", comment = "stop search after specified number of intstructions"),
   @JPFOption(type = "Int", key = "budget.max_state", defaultValue = "-1", comment = "stop search when reaching specified number of new states"),
-  @JPFOption(type = "Int", key = "budget.max_new_states", defaultValue = "-1", comment= "stop search ater specified number of non-replayed new states")
+  @JPFOption(type = "Int", key = "budget.max_new_states", defaultValue = "-1", comment= "stop search after specified number of non-replayed new states"),
+  @JPFOption(type = "Int", key = "budget.check_interval", defaultValue = "-1", comment= "decides how often the checks within instructionExecuted happen")
 })
 
 /**
@@ -55,9 +56,10 @@ import java.lang.management.MemoryUsage;
  * budget.max_time -- This sets the max amount of time in miliseconds that the search should run
  * budget.max_heap -- This is the upper limit on how large the search heap can be 
  * budget.max_depth -- This is the upper limit on how deep the search can go
- * budget.max_insn -- This is the upper limit on instructions ran that the search will allow
- * budget.max_state -- This is the upper limit on states reached in the search
- * budget.max_new_states -- This is the upper limit on NEW states reached in the search (previously unvisited)
+ * budget.max_insn -- This is the upper limit on the number of instructions that the search will run
+ * budget.max_state -- This is the upper limit on new states reached in the search
+ * budget.max_new_states -- This is the upper limit on new states that are not a trace replay reached in the search
+ * budget.check_interval -- This defines how often the checks within instructionExecuted are run. By default it is 10,000
  */
 public class BudgetChecker extends ListenerAdapter {
     
@@ -66,20 +68,58 @@ public class BudgetChecker extends ListenerAdapter {
   long mStart;
   MemoryMXBean mxb;
   
+  // Standard Listener fields set by constructor during initialization
   VM vm;
   Search search;
-  long insnCount;
 
-  //--- the budget thresholds
-  long maxTime;
-  long maxHeap;
-  
-  int maxDepth;
-  long maxInsn;
-  int maxState;
-  int maxNewStates;
-  
+  // Global Counters
+  long insnCount;
   int newStates;
+
+  // the budget thresholds
+
+  /**
+   * The max time the model will be allowed to execute. 
+   * This field is set in the config file through budget.max_time
+   * If not set, this field is ignored
+   */
+  long maxTime;
+
+  /**
+   * The maximum size that the heap will be allowed to reach in the model.
+   * This field is set in the config file through budget.max_heap
+   * If not set, this field is ignored
+   */
+  long maxHeap;
+
+  /**
+   * The maximum size that the depth of the search will be allowed to reach in the model.
+   * This field is set in the config file through budget.max_depth
+   * If not set, this field is ignored
+   */
+  int maxDepth;
+
+  /**
+   * The maximum amount of instructions ran the search will be allowed to reach in the model.
+   * This field is set in the config file through budget.max_insn
+   * If not set, this field is ignored
+   */
+  long maxInsn;
+
+  /**
+   * The maximum amount of states the search will be allowed to reach in the model.
+   * This field is set in the config file through budget.max_state
+   * If not set, this field is ignored
+   */
+  int maxState;
+
+  /**
+   * The maximum amount of new states the search will be allowed to reach in the model.
+   * This field is set in the config file through budget.max_new_state
+   * If not set, this field is ignored
+   */
+  int maxNewStates;
+  int checkInterval;
   
   // the message explaining the exceeded budget
   String message;
@@ -92,6 +132,9 @@ public class BudgetChecker extends ListenerAdapter {
    * @param jpf
    */
   public BudgetChecker (Config conf, JPF jpf) {
+    // initialize counters
+    newStates = 0;
+
     
     //--- get the configured budget limits (0 means not set)
     maxTime = conf.getDuration("budget.max_time", 0);
@@ -100,6 +143,7 @@ public class BudgetChecker extends ListenerAdapter {
     maxInsn = conf.getLong("budget.max_insn", 0);
     maxState = conf.getInt("budget.max_state", 0);
     maxNewStates = conf.getInt("budget.max_new_states", 0);
+    checkInterval = conf.getInt("budget.check_interval", 10000);
     
     tStart = System.currentTimeMillis();
     
@@ -118,6 +162,7 @@ public class BudgetChecker extends ListenerAdapter {
    * exceeded the max time specified in the configuration file.
    * 
    * @return true if the time has exceeded, false otherwise
+   *    - If budget.max_time is not set, returns false
    */
   public boolean timeExceeded() {
     if (maxTime > 0) {
@@ -137,6 +182,7 @@ public class BudgetChecker extends ListenerAdapter {
    * has exceeded the size specified in the configuration file.
    * 
    * @return true if the heap has exceeded, false otherwise
+   *    - If budget.max_heap is not set, returns false
    */
   public boolean heapExceeded() {
 
@@ -162,6 +208,7 @@ public class BudgetChecker extends ListenerAdapter {
    * the limit specified in the configuration file
    * 
    * @return true if the depth has exceeded, false otherwise
+   *    - If budget.max_depth is not set, returns false
    */
   public boolean depthExceeded () {
     if (maxDepth > 0) {
@@ -174,12 +221,30 @@ public class BudgetChecker extends ListenerAdapter {
     
     return false;
   }
-  
+    
+  /**
+   * Method that checks if the number of instructions ran
+   * has exceeded the limit specified in the configuration file
+   * 
+   * @return true if the instruction count has exceeded, false otherwise
+   *    - If budget.max_insn is not set, returns false
+   */
+  public boolean insnExceeded () {
+    if (maxInsn > 0) {
+      if (insnCount > maxInsn) {
+        message = "max instruction count exceeded: " + maxInsn;
+        return true;
+      }
+    }
+    return false;
+  }
+
   /**
    * Method that checks if the number of states reached has
    * exceeded the limit specified in the configuration file
    * 
    * @return true if the state count has exceeded, false otherwise
+   *    - If budget.max_state is not set, returns false
    */
   public boolean statesExceeded () {
     if (maxState > 0) {
@@ -192,28 +257,13 @@ public class BudgetChecker extends ListenerAdapter {
     
     return false;
   }
-    
-  /**
-   * Method that checks that the number of instructions ran
-   * has exceeded the limit specified in the configuration file
-   * 
-   * @return true if the instruction count has exceeded, false otherwise
-   */
-  public boolean insnExceeded () {
-    if (maxInsn > 0) {
-      if (insnCount > maxInsn) {
-        message = "max instruction count exceeded: " + maxInsn;
-        return true;
-      }
-    }
-    return false;
-  }
   
   /**
-   * Method that checks that the number of new states found has
+   * Method that checks if the number of new states found has
    * exceeded the limit specified in the configuration file
    * 
    * @return true if the new states count has exceeded, false otherwise
+   *    - If budget.max_new_states is not set, returns false
    */
   public boolean newStatesExceeded(){
     if (maxNewStates > 0){
@@ -228,7 +278,7 @@ public class BudgetChecker extends ListenerAdapter {
   @Override
   /** 
    * Anytime the state advances, this method checks if
-   * the time, heap, statec ount, depth or new state count
+   * the time, heap, state count, depth or new state count
    * have exceeded their limits. If they have, the search
    * terminates and a message describing why is passed on
    * to the JPF report
@@ -260,6 +310,8 @@ public class BudgetChecker extends ListenerAdapter {
    * the time, heap size or amount of instruction executed has
    * exceeded their limits. If they have, the search terminates
    * and a message why is passed on to the JPF report
+   *
+   * Only checks every 10000 instructions excecuted
    * 
    * @param vm
    * @param ti
@@ -268,10 +320,10 @@ public class BudgetChecker extends ListenerAdapter {
    */
   public void instructionExecuted (VM vm, ThreadInfo ti, Instruction nextInsn, Instruction executedInsn) {
 
-    final int CHECK_INTERVAL = 10000;
-    final int CHECK_INTERVAL1 = CHECK_INTERVAL-1;
+    // Checks every CHECK_INTERVAL instructions excecuted
+    insnCount++;
 
-    if ((insnCount++ % CHECK_INTERVAL) == CHECK_INTERVAL1) {
+    if ((insnCount % CHECK_INTERVAL) == 0) {
 
       if (timeExceeded() || heapExceeded() || insnExceeded()) {
         search.notifySearchConstraintHit(message);
