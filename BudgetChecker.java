@@ -45,8 +45,6 @@ import java.lang.management.MemoryUsage;
 })
 
 /**
- * JPF listener that extends the ListenerAdapter class. 
- * 
  * The BudgetChecker listener is designed to treat the resources of the 
  * local machine JPF is running on as a set of constraints with set values
  * (or a "budget") that shouldn't be exceeded during a JPF search.
@@ -62,11 +60,6 @@ import java.lang.management.MemoryUsage;
  * budget.max_new_states -- This is the upper limit on NEW states reached in the search (previously unvisited)
  */
 public class BudgetChecker extends ListenerAdapter {
-
-  static final int CHECK_INTERVAL = 10000;
-  static final int CHECK_INTERVAL1 = CHECK_INTERVAL-1;
-
-  static final int MEGABYTE = 1048576;  // 1024 * 1024
     
   long tStart;
   MemoryUsage muStart;
@@ -146,7 +139,12 @@ public class BudgetChecker extends ListenerAdapter {
    * @return true if the heap has exceeded, false otherwise
    */
   public boolean heapExceeded() {
+
     if (maxHeap > 0) {
+
+      // Constant used for the amount of bytes in a megabyte
+      final int MEGABYTE = 1048576;
+
       MemoryUsage memoryUsage = mxb.getHeapMemoryUsage();
       long used = memoryUsage.getUsed() - mStart;
       if (used > maxHeap) {
@@ -228,9 +226,7 @@ public class BudgetChecker extends ListenerAdapter {
   }
   
   @Override
-  /**
-   * Overridden method inherited from ListenerAdapter
-   * 
+  /** 
    * Anytime the state advances, this method checks if
    * the time, heap, statec ount, depth or new state count
    * have exceeded their limits. If they have, the search
@@ -271,6 +267,10 @@ public class BudgetChecker extends ListenerAdapter {
    * @param executedInsn
    */
   public void instructionExecuted (VM vm, ThreadInfo ti, Instruction nextInsn, Instruction executedInsn) {
+
+    final int CHECK_INTERVAL = 10000;
+    final int CHECK_INTERVAL1 = CHECK_INTERVAL-1;
+
     if ((insnCount++ % CHECK_INTERVAL) == CHECK_INTERVAL1) {
 
       if (timeExceeded() || heapExceeded() || insnExceeded()) {
