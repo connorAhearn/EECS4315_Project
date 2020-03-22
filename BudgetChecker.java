@@ -63,18 +63,18 @@ import java.lang.management.MemoryUsage;
  */
 public class BudgetChecker extends ListenerAdapter {
     
-  long tStart;
-  MemoryUsage muStart;
-  long mStart;
-  MemoryMXBean mxb;
+  private long tStart;
+  private MemoryUsage muStart;
+  private long mStart;
+  private MemoryMXBean mxb;
   
   // Standard Listener fields set by constructor during initialization
-  VM vm;
-  Search search;
+  private VM vm;
+  private Search search;
 
   // Global Counters
-  long insnCount;
-  int newStates;
+  private long insnCount;
+  private int newStates;
 
   // the budget thresholds
 
@@ -83,46 +83,54 @@ public class BudgetChecker extends ListenerAdapter {
    * This field is set in the config file through budget.max_time
    * If not set, this field is ignored
    */
-  long maxTime;
+  private long maxTime;
 
   /**
    * The maximum size that the heap will be allowed to reach in the model.
    * This field is set in the config file through budget.max_heap
    * If not set, this field is ignored
    */
-  long maxHeap;
+  private long maxHeap;
 
   /**
    * The maximum size that the depth of the search will be allowed to reach in the model.
    * This field is set in the config file through budget.max_depth
    * If not set, this field is ignored
    */
-  int maxDepth;
+  private int maxDepth;
 
   /**
    * The maximum amount of instructions ran the search will be allowed to reach in the model.
    * This field is set in the config file through budget.max_insn
    * If not set, this field is ignored
    */
-  long maxInsn;
+  private long maxInsn;
 
   /**
    * The maximum amount of states the search will be allowed to reach in the model.
    * This field is set in the config file through budget.max_state
    * If not set, this field is ignored
    */
-  int maxState;
+  private int maxState;
 
   /**
    * The maximum amount of new states the search will be allowed to reach in the model.
    * This field is set in the config file through budget.max_new_state
    * If not set, this field is ignored
    */
-  int maxNewStates;
-  int checkInterval;
+  private int maxNewStates;
+
+  /**
+   * The number of instructions to be executed before the instruction count is checked
+   * This field is set in the config file through budget.check_interval
+   * If not set, this field is set to a default 10,000 instruction interval
+   * 
+   * See instructionExecuted (VM vm, ThreadInfo ti, Instruction nextInsn, Instruction executedInsn) for more
+   */
+  private int checkInterval;
   
   // the message explaining the exceeded budget
-  String message;
+  private String message;
   
   /**
    * Initializes a new BudgetChecker Listener object for the 
@@ -323,7 +331,7 @@ public class BudgetChecker extends ListenerAdapter {
     // Checks every CHECK_INTERVAL instructions excecuted
     insnCount++;
 
-    if ((insnCount % CHECK_INTERVAL) == 0) {
+    if ((insnCount % checkInterval) == 0) {
 
       if (timeExceeded() || heapExceeded() || insnExceeded()) {
         search.notifySearchConstraintHit(message);
