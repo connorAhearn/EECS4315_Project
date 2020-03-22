@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and 
  * limitations under the License.
  */
-package gov.nasa.jpf.listener;
+//package gov.nasa.jpf.listener;
 
 import gov.nasa.jpf.Config;
 import gov.nasa.jpf.JPF;
@@ -142,7 +142,6 @@ public class BudgetChecker extends ListenerAdapter {
   public BudgetChecker (Config conf, JPF jpf) {
     // initialize counters
     newStates = 0;
-
     
     //--- get the configured budget limits (0 means not set)
     maxTime = conf.getDuration("budget.max_time", 0);
@@ -152,6 +151,8 @@ public class BudgetChecker extends ListenerAdapter {
     maxState = conf.getInt("budget.max_state", 0);
     maxNewStates = conf.getInt("budget.max_new_states", 0);
     checkInterval = conf.getInt("budget.check_interval", 10000);
+    
+    System.out.println("MAX STATE: " + maxState);
     
     tStart = System.currentTimeMillis();
     
@@ -257,6 +258,7 @@ public class BudgetChecker extends ListenerAdapter {
   public boolean statesExceeded () {
     if (maxState > 0) {
       int stateId = vm.getStateId();
+      System.out.println("MAX: " + maxState + ", Current: " + stateId);
       if (stateId > maxState) {
         message = "max states exceeded: " + maxState;;
         return true;
@@ -293,17 +295,20 @@ public class BudgetChecker extends ListenerAdapter {
    * @param search Search object corresponding to the current search thats running
    */
   @Override
-  public void stateAdvanced (Search search) {    
+  public void stateAdvanced (Search search) {   
+	System.out.println("stateAdvanced :)");
     if (timeExceeded() || heapExceeded()) {
       search.notifySearchConstraintHit(message);
       search.terminate();
     }
     
     if (search.isNewState()){
+      System.out.println("was new state");
       if (!vm.isTraceReplay()){
         newStates++;
       }
       if (statesExceeded() || depthExceeded() || newStatesExceeded()){
+    	System.out.println("States Exceeded :(");
         search.notifySearchConstraintHit(message);
         search.terminate();        
       }
