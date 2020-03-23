@@ -28,8 +28,8 @@ public class BudgetCheckerTest extends TestJPF {
 	private static final String MAX_NEW_STATES_REACHED = "max new state count exceeded";
 	
 	private static final int ONE_HUNDERED_INSTRUCTIONS = 100;
-	private static final int TEN_THOUSAND_INSTRUCTIONS = 1675;
-	private static final int TWENTY_THOUSAND_INSTRUCTIONS = 4175;
+	private static final int TEN_THOUSAND_INSTRUCTIONS = 1673;
+	private static final int TWENTY_THOUSAND_INSTRUCTIONS = 4173;
 	private static final int MEGABYTE = 1048576;
 	private static final int _90_MEGABYTES = 90 * MEGABYTE;
 	
