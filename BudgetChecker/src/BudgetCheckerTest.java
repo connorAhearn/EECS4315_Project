@@ -1,9 +1,10 @@
-import org.junit.Test;
-import gov.nasa.jpf.util.test.TestJPF;
-
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.Random;
+
+import org.junit.Test;
+
+import gov.nasa.jpf.util.test.TestJPF;
 
 public class BudgetCheckerTest extends TestJPF {
 	private static String[] PROPERTIES = { "+classpath=./bin",
