@@ -259,8 +259,8 @@ public class BudgetChecker extends ListenerAdapter {
     if (maxState > 0) {
       int stateId = vm.getStateId();
       System.out.println("MAX: " + maxState + ", Current: " + stateId);
-      if (stateId > maxState) {
-        message = "max states exceeded: " + maxState;;
+      if (stateId >= maxState) {
+        message = "max states exceeded: " + maxState;
         return true;
       }
     }
@@ -305,6 +305,7 @@ public class BudgetChecker extends ListenerAdapter {
     if (search.isNewState()){
       System.out.println("was new state");
       if (!vm.isTraceReplay()){
+    	System.out.println("was not trace replay");
         newStates++;
       }
       if (statesExceeded() || depthExceeded() || newStatesExceeded()){
@@ -316,12 +317,9 @@ public class BudgetChecker extends ListenerAdapter {
   }
       
   /**
-   * Overridden method inherited from ListenerAdapter
-   * 
-   * This method runs anytime an instruction executes. However
-   * it only checks instruction based budget checks on instruction counts
+   * This method checks instruction based budget checks on instruction counts
    * that correspond to the budget.check_interval parameter in the
-   * jpf config file
+   * jpf config file. By default, every 10,000 instructions.
    * 
    * This method checks if
    * the time, heap size or amount of instruction executed has
@@ -340,7 +338,7 @@ public class BudgetChecker extends ListenerAdapter {
     insnCount++;
 
     if ((insnCount % checkInterval) == 0) {
-
+    	System.out.println("TOTAL: " + insnCount);
       if (timeExceeded() || heapExceeded() || insnExceeded()) {
         search.notifySearchConstraintHit(message);
 
