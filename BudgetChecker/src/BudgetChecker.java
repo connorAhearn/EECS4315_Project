@@ -60,13 +60,15 @@ import java.lang.management.MemoryUsage;
  * budget.max_state -- This is the upper limit on new states reached in the search
  * budget.max_new_states -- This is the upper limit on new states that are not a trace replay reached in the search
  * budget.check_interval -- This defines how often the checks within instructionExecuted are run. By default it is 10,000
+ * 
+ * Unless specified, the default value for the options listed are 0. Value of 0 indicates that the budget checker will not be checked.
  */
 public class BudgetChecker extends ListenerAdapter {
     
-  private long tStart;
-  private MemoryUsage muStart;
-  private long mStart;
-  private MemoryMXBean mxb;
+  private long startTime;
+  private MemoryUsage memoryUsage;
+  private long startingMemoryUsage;
+  private MemoryMXBean memoryBean;
   
   // Standard Listener fields set by constructor during initialization
   private VM vm;
@@ -136,8 +138,8 @@ public class BudgetChecker extends ListenerAdapter {
    * Initializes a new BudgetChecker Listener object for the 
    * corresponding JPF instance and configuration file
    * passed to it.
-   * @param conf
-   * @param jpf
+   * @param conf Information contained in the configuration file
+   * @param jpf Access to the JPF instance that is running
    */
   public BudgetChecker (Config conf, JPF jpf) {
     // initialize counters
@@ -152,14 +154,12 @@ public class BudgetChecker extends ListenerAdapter {
     maxNewStates = conf.getInt("budget.max_new_states", 0);
     checkInterval = conf.getInt("budget.check_interval", 10000);
     
-    System.out.println("MAX STATE: " + maxState);
-    
-    tStart = System.currentTimeMillis();
+    startTime = System.currentTimeMillis();
     
     if (maxHeap > 0) {
-      mxb = ManagementFactory.getMemoryMXBean();
-      muStart = mxb.getHeapMemoryUsage();
-      mStart = muStart.getUsed();
+      memoryBean = ManagementFactory.getMemoryMXBean();
+      memoryUsage = memoryBean.getHeapMemoryUsage();
+      startingMemoryUsage = memoryUsage.getUsed();
     }
 
     search = jpf.getSearch();
@@ -175,7 +175,7 @@ public class BudgetChecker extends ListenerAdapter {
    */
   public boolean timeExceeded() {
     if (maxTime > 0) {
-      long duration = System.currentTimeMillis() - tStart;
+      long duration = System.currentTimeMillis() - startTime;
       if (duration > maxTime) {
         message = "max time exceeded: " + Publisher.formatHMS(duration)
                + " >= " + Publisher.formatHMS(maxTime);
@@ -200,8 +200,8 @@ public class BudgetChecker extends ListenerAdapter {
       // Constant used for the amount of bytes in a megabyte
       final int MEGABYTE = 1048576;
 
-      MemoryUsage memoryUsage = mxb.getHeapMemoryUsage();
-      long used = memoryUsage.getUsed() - mStart;
+      MemoryUsage memoryUsage = memoryBean.getHeapMemoryUsage();
+      long used = memoryUsage.getUsed() - startingMemoryUsage;
       if (used > maxHeap) {
         message = "max heap exceeded: " + (used / MEGABYTE) + "MB" 
                       + " >= " + (maxHeap / MEGABYTE) + "MB" ;
@@ -258,7 +258,6 @@ public class BudgetChecker extends ListenerAdapter {
   public boolean statesExceeded () {
     if (maxState > 0) {
       int stateId = vm.getStateId();
-      System.out.println("MAX: " + maxState + ", Current: " + stateId);
       if (stateId >= maxState) {
         message = "max states exceeded: " + maxState;
         return true;
@@ -295,21 +294,17 @@ public class BudgetChecker extends ListenerAdapter {
    * @param search Search object corresponding to the current search thats running
    */
   @Override
-  public void stateAdvanced (Search search) {   
-	System.out.println("stateAdvanced :)");
+  public void stateAdvanced (Search search) {
     if (timeExceeded() || heapExceeded()) {
       search.notifySearchConstraintHit(message);
       search.terminate();
     }
     
     if (search.isNewState()){
-      System.out.println("was new state");
       if (!vm.isTraceReplay()){
-    	System.out.println("was not trace replay");
         newStates++;
       }
       if (statesExceeded() || depthExceeded() || newStatesExceeded()){
-    	System.out.println("States Exceeded :(");
         search.notifySearchConstraintHit(message);
         search.terminate();        
       }
@@ -327,18 +322,17 @@ public class BudgetChecker extends ListenerAdapter {
    * and a message why is passed on to the JPF report
    * 
    * @param vm JPF VM related to the current model check
-   * @param ti Thread information provided by JPF required for providing instruction statistics & thresholds
+   * @param threadInfo Thread information provided by JPF required for providing instruction statistics & thresholds
    * @param nextInsn Instruction that will run next
    * @param executedInsn Instruction that has just run
    */
   @Override
-  public void instructionExecuted (VM vm, ThreadInfo ti, Instruction nextInsn, Instruction executedInsn) {
+  public void instructionExecuted (VM vm, ThreadInfo threadInfo, Instruction nextInsn, Instruction executedInsn) {
 
     // Checks every CHECK_INTERVAL instructions excecuted
     insnCount++;
 
     if ((insnCount % checkInterval) == 0) {
-    	System.out.println("TOTAL: " + insnCount);
       if (timeExceeded() || heapExceeded() || insnExceeded()) {
         search.notifySearchConstraintHit(message);
 
