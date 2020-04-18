@@ -144,6 +144,7 @@ public class BudgetChecker extends ListenerAdapter {
   public BudgetChecker (Config conf, JPF jpf) {
     // initialize counters
     newStates = 0;
+    insnCount = 0;
     
     //--- get the configured budget limits (0 means not set)
     maxTime = conf.getDuration("budget.max_time", 0);
