@@ -80,6 +80,13 @@ public class BudgetCheckerTest extends TestJPF {
 	private void basicExecution() {
 		makeStates(2);
 	}
+	
+	private void concurrency() {
+		
+		for(int i = 0; i < 5; i++) {
+			new PointlessThread().run();
+		}
+	}
 
 	/**
 	 * Resets all properties to their original values.
@@ -202,6 +209,57 @@ public class BudgetCheckerTest extends TestJPF {
 	}
 	
 	/**
+	 * Tests that no max state violation occurs when not exceeding max states
+	 */
+	@Test
+	public void testMaxStateNoViolationWithConcurrency() {
+		resetProperties();
+		int maxStates = 1000000000;
+		PROPERTIES[4] = "+budget.max_state=" + maxStates;
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated", !stream.toString().contains(MAX_STATES_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that no max time violation occurs with a simple execution
+	 */
+	@Test
+	public void testMaxTimeNoViolationWithConcurrency() {
+		resetProperties();
+		PROPERTIES[4] = "+budget.max_time=3000";
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated", !stream.toString().contains(MAX_TIME_REACHED));
+		}
+	}
+	
+	/**
 	 * Tests that no max heap violation occurs with a simple execution
 	 */
 	@Test
@@ -252,6 +310,56 @@ public class BudgetCheckerTest extends TestJPF {
 	}
 	
 	/**
+	 * Tests that no max heap violation occurs with a simple execution
+	 */
+	@Test
+	public void testMaxHeapNoViolationWithConcurrency() {	
+		resetProperties();
+		PROPERTIES[4] = "+budget.max_heap=" + _90_MEGABYTES;
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated", !stream.toString().contains(MAX_HEAP_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that no max depth violation occurs with a simple execution
+	 */
+	@Test
+	public void testMaxDepthNoViolationWithConcurrency() {
+		resetProperties();
+		PROPERTIES[4] = "+budget.max_depth=100";
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated", !stream.toString().contains(MAX_DEPTH_REACHED));
+		}
+	}
+	
+	/**
 	 * Tests that the max time violation occurs with a longer execution
 	 */
 	@Test
@@ -271,6 +379,31 @@ public class BudgetCheckerTest extends TestJPF {
 		if (this.verifyNoPropertyViolation(PROPERTIES)) {
 			int manyExecutions = 1000;
 			for(int i = 0; i < manyExecutions; i++) basicExecution();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated", stream.toString().contains(MAX_TIME_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that the max time violation occurs with a longer execution
+	 */
+	@Test
+	public void testMaxTimeViolationWithConcurrency() {
+		resetProperties();
+		PROPERTIES[4] = "+budget.max_time=1";
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
 		} else {
 			System.setOut(out);
 			TestJPF.assertTrue("Property was violated", stream.toString().contains(MAX_TIME_REACHED));
@@ -511,6 +644,213 @@ public class BudgetCheckerTest extends TestJPF {
 		
 		if (this.verifyNoPropertyViolation(PROPERTIES)) {
 			for (int i = 0; i <= FEW_INSTRUCTIONS; i++);
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated", stream.toString().contains(MAX_INSTRUCTION_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that the max heap violation occurs on heap intensive program
+	 */
+	@Test
+	public void testMaxHeapViolationWithConcurrency() {
+		resetProperties();
+		PROPERTIES[4] = "+budget.max_heap=4000";
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated", stream.toString().contains(MAX_HEAP_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that a max depth violation occurs when exceeding depth
+	 */
+	@Test
+	public void testMaxDepthViolationWithConcurrency() {
+		resetProperties();
+		PROPERTIES[4] = "+budget.max_depth=1";
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated: " + stream.toString(), stream.toString().contains(MAX_DEPTH_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that a max state violation occurs when exceeding number of states
+	 */
+	@Test
+	public void testMaxStateViolationWithConcurrency() {
+		resetProperties();
+		int maxStates = 3;
+		PROPERTIES[4] = "+budget.max_state=" + maxStates;
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was not violated", stream.toString().contains(MAX_STATES_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that no max state violation occurs when not exceeding number of states
+	 */
+	@Test
+	public void testMaxNewStateNoViolationWithConcurrency() {
+		resetProperties();
+		int maxStates = 40000000;
+		PROPERTIES[4] = "+budget.max_new_states=" + maxStates;
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated", !stream.toString().contains(MAX_NEW_STATES_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that a max new state violation occurs when exceeding max new states
+	 */
+	@Test
+	public void testMaxNewStateViolationWithConcurrency() {
+		resetProperties();
+		int maxStates = 3;
+		PROPERTIES[4] = "+budget.max_new_states=" + maxStates;
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was not violated", stream.toString().contains(MAX_NEW_STATES_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that no max instruction violation occurs when executing some instructions.
+	 */
+	@Test
+	public void testMaxInstructionNoViolationWithConcurrency() {
+		resetProperties();
+		PROPERTIES[4] = "+budget.max_insn=9999";
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated", !stream.toString().contains(MAX_INSTRUCTION_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that check_interval changes how frequently the check within instructionExcecuted occurs.
+	 * Should not have violation since check interval is its default of 10,000;
+	 */
+	@Test
+	public void testCheckIntervalNoViolationWithConcurrency() {
+		resetProperties();
+		PROPERTIES[4] = "+budget.max_insn=99";
+		PROPERTIES[5] = "";
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
+		} else {
+			System.setOut(out);
+			TestJPF.assertTrue("Property was violated", !stream.toString().contains(MAX_INSTRUCTION_REACHED));
+		}
+	}
+	
+	/**
+	 * Tests that check_interval changes how frequently the check within instructionExcecuted occurs.
+	 * Should have violation since check interval is low;
+	 */
+	@Test
+	public void testCheckIntervalViolationWithConcurrency() {
+		resetProperties();
+		PROPERTIES[4] = "+budget.max_insn=99";
+		PROPERTIES[5] = "+budget.check_interval=100";
+		
+		PrintStream out = null;
+		ByteArrayOutputStream stream = null;
+		
+		if (!TestJPF.isJPFRun()) {
+			out = System.out;
+			stream = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(stream));
+		}
+		
+		if (this.verifyNoPropertyViolation(PROPERTIES)) {
+			concurrency();
 		} else {
 			System.setOut(out);
 			TestJPF.assertTrue("Property was violated", stream.toString().contains(MAX_INSTRUCTION_REACHED));
