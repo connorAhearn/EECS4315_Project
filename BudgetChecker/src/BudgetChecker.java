@@ -36,22 +36,21 @@ import java.lang.management.MemoryUsage;
  * Listener that implements various budget constraints
  */
 @JPFOptions({
-  @JPFOption(type = "Long", key = "budget.max_time", defaultValue= "-1", comment = "stop search after specified duration [msec]"),
-  @JPFOption(type = "Long", key = "budget.max_heap", defaultValue = "-1", comment= "stop search when VM heapsize reaches specified limit"),
-  @JPFOption(type = "Int", key = "budget.max_depth", defaultValue = "-1", comment = "stop search at specified search depth"),
-  @JPFOption(type = "long", key = "budget.max_insn", defaultValue = "-1", comment = "stop search after specified number of intstructions"),
-  @JPFOption(type = "Int", key = "budget.max_state", defaultValue = "-1", comment = "stop search when reaching specified number of new states"),
-  @JPFOption(type = "Int", key = "budget.max_new_states", defaultValue = "-1", comment= "stop search after specified number of non-replayed new states"),
-  @JPFOption(type = "Int", key = "budget.check_interval", defaultValue = "-1", comment= "decides how often the checks within instructionExecuted happen")
-})
+		@JPFOption(type = "Long", key = "budget.max_time", defaultValue = "-1", comment = "stop search after specified duration [msec]"),
+		@JPFOption(type = "Long", key = "budget.max_heap", defaultValue = "-1", comment = "stop search when VM heapsize reaches specified limit"),
+		@JPFOption(type = "Int", key = "budget.max_depth", defaultValue = "-1", comment = "stop search at specified search depth"),
+		@JPFOption(type = "long", key = "budget.max_insn", defaultValue = "-1", comment = "stop search after specified number of intstructions"),
+		@JPFOption(type = "Int", key = "budget.max_state", defaultValue = "-1", comment = "stop search when reaching specified number of new states"),
+		@JPFOption(type = "Int", key = "budget.max_new_states", defaultValue = "-1", comment = "stop search after specified number of non-replayed new states"),
+		@JPFOption(type = "Int", key = "budget.check_interval", defaultValue = "-1", comment = "decides how often the checks within instructionExecuted happen") })
 
 /**
- * The BudgetChecker listener is designed to treat the resources of the 
- * local machine JPF is running on as a set of constraints with set values
- * (or a "budget") that shouldn't be exceeded during a JPF search.
+ * The BudgetChecker listener is designed to treat the resources of the local
+ * machine JPF is running on as a set of constraints with set values (or a
+ * "budget") that shouldn't be exceeded during a JPF search.
  * 
- * Constraints for the BudgetChecker have to be set within the .jpf configuration
- * file. Options for these are as follows:
+ * Constraints for the BudgetChecker have to be set within the .jpf
+ * configuration file. Options for these are as follows:
  * 
  * budget.max_time -- This sets the max amount of time in miliseconds that the search should run
  * budget.max_heap -- This is the upper limit on how large the search heap can be in bytes 
