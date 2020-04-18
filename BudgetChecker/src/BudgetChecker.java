@@ -52,299 +52,293 @@ import java.lang.management.MemoryUsage;
  * Constraints for the BudgetChecker have to be set within the .jpf
  * configuration file. Options for these are as follows:
  * 
- * budget.max_time -- This sets the max amount of time in miliseconds that the
- * search should run budget.max_heap -- This is the upper limit on how large the
- * search heap can be budget.max_depth -- This is the upper limit on how deep
- * the search can go budget.max_insn -- This is the upper limit on the number of
- * instructions that the search will run budget.max_state -- This is the upper
- * limit on new states reached in the search budget.max_new_states -- This is
- * the upper limit on new states that are not a trace replay reached in the
- * search budget.check_interval -- This defines how often the checks within
- * instructionExecuted are run. By default it is 10,000
+ * budget.max_time -- This sets the max amount of time in miliseconds that the search should run
+ * budget.max_heap -- This is the upper limit on how large the search heap can be in bytes 
+ * budget.max_depth -- This is the upper limit on how deep the search can go
+ * budget.max_insn -- This is the upper limit on the number of instructions that the search will run
+ * budget.max_state -- This is the upper limit on new states reached in the search
+ * budget.max_new_states -- This is the upper limit on new states that are not a trace replay reached in the search
+ * budget.check_interval -- This defines how often the checks within instructionExecuted are run. By default it is 10,000
+ * 
+ * Unless specified, the default value for the options listed are 0. Value of 0 indicates that the budget checker will not be checked.
  */
 public class BudgetChecker extends ListenerAdapter {
+    
+  private long startTime;
+  private MemoryUsage memoryUsage;
+  private long startingMemoryUsage;
+  private MemoryMXBean memoryBean;
+  
+  // Standard Listener fields set by constructor during initialization
+  private VM vm;
+  private Search search;
 
-	private long tStart;
-	private MemoryUsage muStart;
-	private long mStart;
-	private MemoryMXBean mxb;
+  // Global Counters
+  private long insnCount;
+  private int newStates;
 
-	// Standard Listener fields set by constructor during initialization
-	private VM vm;
-	private Search search;
+  // the budget thresholds
 
-	// Global Counters
-	private long insnCount;
-	private int newStates;
+  /**
+   * The max time the model will be allowed to execute. 
+   * This field is set in the config file through budget.max_time
+   * If not set, this field is ignored
+   */
+  private long maxTime;
 
-	// the budget thresholds
+  /**
+   * The maximum size that the heap will be allowed to reach in the model.
+   * This field is set in the config file through budget.max_heap
+   * If not set, this field is ignored
+   */
+  private long maxHeap;
 
-	/**
-	 * The max time the model will be allowed to execute. This field is set in the
-	 * config file through budget.max_time If not set, this field is ignored
-	 */
-	private long maxTime;
+  /**
+   * The maximum size that the depth of the search will be allowed to reach in the model.
+   * This field is set in the config file through budget.max_depth
+   * If not set, this field is ignored
+   */
+  private int maxDepth;
 
-	/**
-	 * The maximum size that the heap will be allowed to reach in the model. This
-	 * field is set in the config file through budget.max_heap If not set, this
-	 * field is ignored
-	 */
-	private long maxHeap;
+  /**
+   * The maximum amount of instructions ran the search will be allowed to reach in the model.
+   * This field is set in the config file through budget.max_insn
+   * If not set, this field is ignored
+   */
+  private long maxInsn;
 
-	/**
-	 * The maximum size that the depth of the search will be allowed to reach in the
-	 * model. This field is set in the config file through budget.max_depth If not
-	 * set, this field is ignored
-	 */
-	private int maxDepth;
+  /**
+   * The maximum amount of states the search will be allowed to reach in the model.
+   * This field is set in the config file through budget.max_state
+   * If not set, this field is ignored
+   */
+  private int maxState;
 
-	/**
-	 * The maximum amount of instructions ran the search will be allowed to reach in
-	 * the model. This field is set in the config file through budget.max_insn If
-	 * not set, this field is ignored
-	 */
-	private long maxInsn;
+  /**
+   * The maximum amount of new states the search will be allowed to reach in the model.
+   * This field is set in the config file through budget.max_new_state
+   * If not set, this field is ignored
+   */
+  private int maxNewStates;
 
-	/**
-	 * The maximum amount of states the search will be allowed to reach in the
-	 * model. This field is set in the config file through budget.max_state If not
-	 * set, this field is ignored
-	 */
-	private int maxState;
+  /**
+   * The number of instructions to be executed before the instruction count is checked
+   * This field is set in the config file through budget.check_interval
+   * If not set, this field is set to a default 10,000 instruction interval
+   * 
+   * See instructionExecuted (VM vm, ThreadInfo ti, Instruction nextInsn, Instruction executedInsn) for more
+   */
+  private int checkInterval;
+  
+  // the message explaining the exceeded budget
+  private String message;
+  
+  /**
+   * Initializes a new BudgetChecker Listener object for the 
+   * corresponding JPF instance and configuration file
+   * passed to it.
+   * @param conf Information contained in the configuration file
+   * @param jpf Access to the JPF instance that is running
+   */
+  public BudgetChecker (Config conf, JPF jpf) {
+    // initialize counters
+    newStates = 0;
+    
+    //--- get the configured budget limits (0 means not set)
+    maxTime = conf.getDuration("budget.max_time", 0);
+    maxHeap = conf.getMemorySize("budget.max_heap", 0);
+    maxDepth = conf.getInt("budget.max_depth", 0);
+    maxInsn = conf.getLong("budget.max_insn", 0);
+    maxState = conf.getInt("budget.max_state", 0);
+    maxNewStates = conf.getInt("budget.max_new_states", 0);
+    checkInterval = conf.getInt("budget.check_interval", 10000);
+    
+    startTime = System.currentTimeMillis();
+    
+    if (maxHeap > 0) {
+      memoryBean = ManagementFactory.getMemoryMXBean();
+      memoryUsage = memoryBean.getHeapMemoryUsage();
+      startingMemoryUsage = memoryUsage.getUsed();
+    }
 
-	/**
-	 * The maximum amount of new states the search will be allowed to reach in the
-	 * model. This field is set in the config file through budget.max_new_state If
-	 * not set, this field is ignored
-	 */
-	private int maxNewStates;
+    search = jpf.getSearch();
+    vm = jpf.getVM();
+  }
+  
+  /**
+   * Method that checks if the time that the search has ran has 
+   * exceeded the max time specified in the configuration file.
+   * 
+   * @return true if the time has exceeded, false otherwise
+   *    - If budget.max_time is not set, returns false
+   */
+  public boolean timeExceeded() {
+    if (maxTime > 0) {
+      long duration = System.currentTimeMillis() - startTime;
+      if (duration > maxTime) {
+        message = "max time exceeded: " + Publisher.formatHMS(duration)
+               + " >= " + Publisher.formatHMS(maxTime);
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Method that checks if the amount of space taken by the heap
+   * has exceeded the size specified in the configuration file.
+   * 
+   * @return true if the heap has exceeded, false otherwise
+   *    - If budget.max_heap is not set, returns false
+   */
+  public boolean heapExceeded() {
 
-	/**
-	 * The number of instructions to be executed before the instruction count is
-	 * checked This field is set in the config file through budget.check_interval If
-	 * not set, this field is set to a default 10,000 instruction interval
-	 * 
-	 * See instructionExecuted (VM vm, ThreadInfo ti, Instruction nextInsn,
-	 * Instruction executedInsn) for more
-	 */
-	private int checkInterval;
+    if (maxHeap > 0) {
 
-	// the message explaining the exceeded budget
-	private String message;
+      // Constant used for the amount of bytes in a megabyte
+      final int MEGABYTE = 1048576;
 
-	/**
-	 * Initializes a new BudgetChecker Listener object for the corresponding JPF
-	 * instance and configuration file passed to it.
-	 * 
-	 * @param conf
-	 * @param jpf
-	 */
-	public BudgetChecker(Config conf, JPF jpf) {
-		// initialize counters
-		newStates = 0;
+      MemoryUsage memoryUsage = memoryBean.getHeapMemoryUsage();
+      long used = memoryUsage.getUsed() - startingMemoryUsage;
+      if (used > maxHeap) {
+        message = "max heap exceeded: " + (((float)used) / MEGABYTE) + "MB" 
+                      + " >= " + (((float)maxHeap) / MEGABYTE) + "MB" ;
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Method that checks if the depth of the search has exceeded
+   * the limit specified in the configuration file
+   * 
+   * @return true if the depth has exceeded, false otherwise
+   *    - If budget.max_depth is not set, returns false
+   */
+  public boolean depthExceeded () {
+    if (maxDepth > 0) {
+      int depth = search.getDepth();
+      if (depth > maxDepth) {
+        message = "max search depth exceeded: " + maxDepth;
+        return true;
+      }
+    }
+    
+    return false;
+  }
+    
+  /**
+   * Method that checks if the number of instructions ran
+   * has exceeded the limit specified in the configuration file
+   * 
+   * @return true if the instruction count has exceeded, false otherwise
+   *    - If budget.max_insn is not set, returns false
+   */
+  public boolean insnExceeded () {
+    if (maxInsn > 0) {
+      if (insnCount > maxInsn) {
+        message = "max instruction count exceeded: " + maxInsn;
+        return true;
+      }
+    }
+    return false;
+  }
 
-		// --- get the configured budget limits (0 means not set)
-		maxTime = conf.getDuration("budget.max_time", 0);
-		maxHeap = conf.getMemorySize("budget.max_heap", 0);
-		maxDepth = conf.getInt("budget.max_depth", 0);
-		maxInsn = conf.getLong("budget.max_insn", 0);
-		maxState = conf.getInt("budget.max_state", 0);
-		maxNewStates = conf.getInt("budget.max_new_states", 0);
-		checkInterval = conf.getInt("budget.check_interval", 10000);
+  /**
+   * Method that checks if the number of states reached has
+   * exceeded the limit specified in the configuration file
+   * 
+   * @return true if the state count has exceeded, false otherwise
+   *    - If budget.max_state is not set, returns false
+   */
+  public boolean statesExceeded () {
+    if (maxState > 0) {
+      int stateId = vm.getStateId();
+      if (stateId >= maxState) {
+        message = "max states exceeded: " + maxState;
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Method that checks if the number of new states found has
+   * exceeded the limit specified in the configuration file
+   * 
+   * @return true if the new states count has exceeded, false otherwise
+   *    - If budget.max_new_states is not set, returns false
+   */
+  public boolean newStatesExceeded(){
+    if (maxNewStates > 0){
+      if (newStates > maxNewStates) {
+        message = "max new state count exceeded: " + maxNewStates;
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  /** 
+   * Anytime the state advances, this method checks if
+   * the time, heap, state count, depth or new state count
+   * have exceeded their limits. If they have, the search
+   * terminates and a message describing why is passed on
+   * to the JPF report
+   * 
+   * @param search Search object corresponding to the current search thats running
+   */
+  @Override
+  public void stateAdvanced (Search search) {
+    if (timeExceeded() || heapExceeded()) {
+      search.notifySearchConstraintHit(message);
+      search.terminate();
+    }
+    
+    if (search.isNewState()){
+      if (!vm.isTraceReplay()){
+        newStates++;
+      }
+      if (statesExceeded() || depthExceeded() || newStatesExceeded()){
+        search.notifySearchConstraintHit(message);
+        search.terminate();        
+      }
+    }
+  }
+      
+  /**
+   * This method checks instruction based budget checks on instruction counts
+   * that correspond to the budget.check_interval parameter in the
+   * jpf config file. By default, every 10,000 instructions.
+   * 
+   * This method checks if
+   * the time, heap size or amount of instruction executed has
+   * exceeded their limits. If they have, the search terminates
+   * and a message why is passed on to the JPF report
+   * 
+   * @param vm JPF VM related to the current model check
+   * @param threadInfo Thread information provided by JPF required for providing instruction statistics & thresholds
+   * @param nextInsn Instruction that will run next
+   * @param executedInsn Instruction that has just run
+   */
+  @Override
+  public void instructionExecuted (VM vm, ThreadInfo threadInfo, Instruction nextInsn, Instruction executedInsn) {
 
-		System.out.println("MAX STATE: " + maxState);
+    // Checks every CHECK_INTERVAL instructions excecuted
+    insnCount++;
 
-		tStart = System.currentTimeMillis();
+    if ((insnCount % checkInterval) == 0) {
+      if (timeExceeded() || heapExceeded() || insnExceeded()) {
+        search.notifySearchConstraintHit(message);
 
-		if (maxHeap > 0) {
-			mxb = ManagementFactory.getMemoryMXBean();
-			muStart = mxb.getHeapMemoryUsage();
-			mStart = muStart.getUsed();
-		}
-
-		search = jpf.getSearch();
-		vm = jpf.getVM();
-	}
-
-	/**
-	 * Method that checks if the time that the search has ran has exceeded the max
-	 * time specified in the configuration file.
-	 * 
-	 * @return true if the time has exceeded, false otherwise - If budget.max_time
-	 *         is not set, returns false
-	 */
-	public boolean timeExceeded() {
-		if (maxTime > 0) {
-			long duration = System.currentTimeMillis() - tStart;
-			if (duration > maxTime) {
-				message = "max time exceeded: " + Publisher.formatHMS(duration) + " >= " + Publisher.formatHMS(maxTime);
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Method that checks if the amount of space taken by the heap has exceeded the
-	 * size specified in the configuration file.
-	 * 
-	 * @return true if the heap has exceeded, false otherwise - If budget.max_heap
-	 *         is not set, returns false
-	 */
-	public boolean heapExceeded() {
-
-		if (maxHeap > 0) {
-
-			// Constant used for the amount of bytes in a megabyte
-			final int MEGABYTE = 1048576;
-
-			MemoryUsage memoryUsage = mxb.getHeapMemoryUsage();
-			long used = memoryUsage.getUsed() - mStart;
-			if (used > maxHeap) {
-				message = "max heap exceeded: " + (used / MEGABYTE) + "MB" + " >= " + (maxHeap / MEGABYTE) + "MB";
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Method that checks if the depth of the search has exceeded the limit
-	 * specified in the configuration file
-	 * 
-	 * @return true if the depth has exceeded, false otherwise - If budget.max_depth
-	 *         is not set, returns false
-	 */
-	public boolean depthExceeded() {
-		if (maxDepth > 0) {
-			int depth = search.getDepth();
-			if (depth > maxDepth) {
-				message = "max search depth exceeded: " + maxDepth;
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Method that checks if the number of instructions ran has exceeded the limit
-	 * specified in the configuration file
-	 * 
-	 * @return true if the instruction count has exceeded, false otherwise - If
-	 *         budget.max_insn is not set, returns false
-	 */
-	public boolean insnExceeded() {
-		if (maxInsn > 0) {
-			if (insnCount > maxInsn) {
-				message = "max instruction count exceeded: " + maxInsn;
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Method that checks if the number of states reached has exceeded the limit
-	 * specified in the configuration file
-	 * 
-	 * @return true if the state count has exceeded, false otherwise - If
-	 *         budget.max_state is not set, returns false
-	 */
-	public boolean statesExceeded() {
-		if (maxState > 0) {
-			int stateId = vm.getStateId();
-			System.out.println("MAX: " + maxState + ", Current: " + stateId);
-			if (stateId > maxState) {
-				message = "max states exceeded: " + maxState;
-				;
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Method that checks if the number of new states found has exceeded the limit
-	 * specified in the configuration file
-	 * 
-	 * @return true if the new states count has exceeded, false otherwise - If
-	 *         budget.max_new_states is not set, returns false
-	 */
-	public boolean newStatesExceeded() {
-		if (maxNewStates > 0) {
-			if (newStates > maxNewStates) {
-				message = "max new state count exceeded: " + maxNewStates;
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Anytime the state advances, this method checks if the time, heap, state
-	 * count, depth or new state count have exceeded their limits. If they have, the
-	 * search terminates and a message describing why is passed on to the JPF report
-	 * 
-	 * @param search Search object corresponding to the current search thats running
-	 */
-	@Override
-	public void stateAdvanced(Search search) {
-		System.out.println("stateAdvanced :)");
-		if (timeExceeded() || heapExceeded()) {
-			search.notifySearchConstraintHit(message);
-			search.terminate();
-		}
-
-		if (search.isNewState()) {
-			System.out.println("was new state");
-			if (!vm.isTraceReplay()) {
-				newStates++;
-			}
-			if (statesExceeded() || depthExceeded() || newStatesExceeded()) {
-				System.out.println("States Exceeded :(");
-				search.notifySearchConstraintHit(message);
-				search.terminate();
-			}
-		}
-	}
-
-	/**
-	 * Overridden method inherited from ListenerAdapter
-	 * 
-	 * This method runs anytime an instruction executes. However it only checks
-	 * instruction based budget checks on instruction counts that correspond to the
-	 * budget.check_interval parameter in the jpf config file
-	 * 
-	 * This method checks if the time, heap size or amount of instruction executed
-	 * has exceeded their limits. If they have, the search terminates and a message
-	 * why is passed on to the JPF report
-	 * 
-	 * @param vm           JPF VM related to the current model check
-	 * @param ti           Thread information provided by JPF required for providing
-	 *                     instruction statistics & thresholds
-	 * @param nextInsn     Instruction that will run next
-	 * @param executedInsn Instruction that has just run
-	 */
-	@Override
-	public void instructionExecuted(VM vm, ThreadInfo ti, Instruction nextInsn, Instruction executedInsn) {
-
-		// Checks every CHECK_INTERVAL instructions excecuted
-		insnCount++;
-
-		if ((insnCount % checkInterval) == 0) {
-
-			if (timeExceeded() || heapExceeded() || insnExceeded()) {
-				search.notifySearchConstraintHit(message);
-
-				vm.getCurrentThread().breakTransition("budgetConstraint");
-				search.terminate();
-			}
-		}
-	}
+        vm.getCurrentThread().breakTransition("budgetConstraint");
+        search.terminate();
+      }    
+    }
+  }
 
 }
