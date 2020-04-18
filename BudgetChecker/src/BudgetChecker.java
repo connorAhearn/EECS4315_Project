@@ -54,7 +54,7 @@ import java.lang.management.MemoryUsage;
  * file. Options for these are as follows:
  * 
  * budget.max_time -- This sets the max amount of time in miliseconds that the search should run
- * budget.max_heap -- This is the upper limit on how large the search heap can be 
+ * budget.max_heap -- This is the upper limit on how large the search heap can be in bytes 
  * budget.max_depth -- This is the upper limit on how deep the search can go
  * budget.max_insn -- This is the upper limit on the number of instructions that the search will run
  * budget.max_state -- This is the upper limit on new states reached in the search
@@ -203,8 +203,8 @@ public class BudgetChecker extends ListenerAdapter {
       MemoryUsage memoryUsage = memoryBean.getHeapMemoryUsage();
       long used = memoryUsage.getUsed() - startingMemoryUsage;
       if (used > maxHeap) {
-        message = "max heap exceeded: " + (used / MEGABYTE) + "MB" 
-                      + " >= " + (maxHeap / MEGABYTE) + "MB" ;
+        message = "max heap exceeded: " + (((float)used) / MEGABYTE) + "MB" 
+                      + " >= " + (((float)maxHeap) / MEGABYTE) + "MB" ;
         return true;
       }
     }
